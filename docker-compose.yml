@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Service 1: Application NestJS (mode développement)
+  web:
+    build: . # Dit à Compose d'utiliser le Dockerfile pour construire/mettre à jour l'image
+    image: nestjs-app-image # Donne un nom à l'image construite par Compose
+    container_name: nestjs_app_dev # Nom du conteneur pour le dev
+    ports:
+      - "3000:3000" # Mappe le port
+    environment:
+      # Exemple: Connexion à la DB via le nom du service 'db'
+      DATABASE_URL: mongodb://db:27017/mydatabase # Assure-toi que ton app Nest utilise cette variable ou configure la connexion à 'db'
+      NODE_ENV: development
+      # Ajoute d'autres variables d'environnement si nécessaire
+    volumes:
+      # Monte TOUT le dossier local dans /app du conteneur
+      # C'est nécessaire pour que 'nest start --watch' voie les fichiers .ts
+      - .:/app
+      # Volume anonyme pour éviter que node_modules local n'écrase celui du conteneur
+      # Essentiel pour que les dépendances installées dans l'image soient utilisées
+      - /app/node_modules
+    networks:
+      - app-net # Connecte au réseau défini ci-dessous
+    depends_on:
+      - db # Attend que le service 'db' soit prêt (partiellement)
+    # Override la commande par défaut du Dockerfile (CMD ["node", "dist/main"])
+    # pour lancer le mode développement avec watch.
+    command: npm run start:dev
+
+  # Service 2: Base de données MongoDB (inchangé)
+  db:
+    image: mongo:5 # Utilise l'image officielle Mongo v5
+    container_name: nestjs_mongo_db # Nom de conteneur mis à jour
+    volumes:
+      - mongo_data:/data/db # Stocke les données de Mongo dans un volume nommé
+    networks:
+      - app-net # Connecte aussi au réseau
+    # Pour MongoDB 5+, ajout de variables d'environnement pour l'authentification si nécessaire
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: root
+    #   MONGO_INITDB_ROOT_PASSWORD: example
+
+networks:
+  app-net: # Nom de réseau mis à jour
+    driver: bridge
+
+volumes:
+  mongo_data: # Définit le volume nommé pour la persistance des données Mongo
+    driver: local
